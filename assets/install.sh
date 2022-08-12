@@ -1,5 +1,12 @@
 #!/bin/bash
 
+# Adjust env. name
+if [ -z $maildomain ]; then
+  maildomain=$postconf_myhostname
+elif [ -z $postconf_myhostname ]; then
+  postconf_myhostname=$maildomain
+fi
+
 #judgement
 if [[ -a /etc/supervisor/conf.d/supervisord.conf ]]; then
   exit 0
@@ -26,8 +33,15 @@ service postfix start
 tail -f /var/log/mail.log
 EOF
 chmod +x /opt/postfix.sh
-postconf -e myhostname=$maildomain
 postconf -F '*/*/chroot = n'
+
+# Edit config from env. vars
+for envvar in `printenv | grep -E "^postconf_.+=.+"`; do
+  configname=`echo $envvar | sed -E "s/^postconf_(.+)=.+/\1/"`
+  configvalue=`echo $envvar | sed -E "s/^postconf_.+=(.+)/\1/"`
+  echo "postconf -e $configname=$configvalue"
+  eval "postconf -e $configname=$configvalue"
+done
 
 ############
 # SASL SUPPORT FOR CLIENTS
